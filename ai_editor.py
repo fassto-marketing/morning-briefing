@@ -11,75 +11,77 @@ def analyze_for_leadership(all_articles):
     if not GOOGLE_API_KEY:
         return "🚨 API Key 오류", "오류"
 
-    # 1. 뉴스 데이터 정리
     news_text_dump = ""
     for idx, item in enumerate(all_articles, 1):
         news_text_dump += f"기사{idx}: 제목='{item['title']}', 링크='{item['link']}'\n"
 
-    # 2. 한국 시간 계산
     utc_now = datetime.datetime.utcnow()
     kst_now = utc_now + datetime.timedelta(hours=9)
     today = kst_now.strftime("%Y-%m-%d")
     weekday = kst_now.strftime("%A")
 
-    # 3. 팩트 중심 초정밀 프롬프트
+    # 3. 날카로운 경영 분석가 프롬프트
     prompt = f"""
-    당신은 파스토(Fassto)의 'Daily Intelligence Officer'입니다.
-    제공된 뉴스 중 가장 중요한 5개를 엄선하여 뉴스레터 스타일로 요약하세요.
+    당신은 파스토(Fassto)의 최고 전략 책임자(CSO)입니다.
+    경영진이 시장의 위협과 기회를 즉각적으로 파악할 수 있도록, 가장 파급력이 큰 뉴스 5개를 엄선하여 날카롭게 브리핑하세요.
 
     [입력된 뉴스 데이터]
     {news_text_dump}
 
     [작성 원칙 - 엄격 준수]
-    1. 인사말("안녕하세요" 등), 맺음말, 설명하는 문장을 절대 출력하지 마세요.
-    2. "---" 같은 불필요한 구분선이나 의미 없는 기호(*)를 절대 쓰지 마세요.
-    3. 주관적 의견을 배제하고 객관적 팩트 위주로 간결하게(개조식) 요약하세요.
-    4. 슬랙 하이퍼링크 포맷인 `<링크주소|기사제목>` 형식을 반드시 지키세요.
-    5. 아래 제공된 [출력 템플릿]의 형태를 100% 똑같이 유지하고 내용만 채워서 바로 출력하세요.
+    1. 두루뭉술한 표현(예: "중요해짐", "노력해야 함", "고도화 중")을 철저히 배제하세요.
+    2. 숫자, 고유명사(경쟁사 이름 등), 구체적 팩트를 반드시 포함하세요.
+    3. 이 뉴스가 파스토의 '매출', '경쟁력', '고객 이탈'에 미치는 직접적인 영향(Impact)을 제시하세요.
+    4. Action Item은 뻔한 말(예: "동향 파악") 대신, 즉시 지시할 수 있는 구체적인 행동(예: "제주도 익일배송 대응을 위한 현지 파트너사 단가 비교")으로 작성하세요.
+    5. 아래 [출력 템플릿] 기호와 형태를 100% 똑같이 유지하세요. (인사말 등 절대 금지)
 
-    [출력 템플릿] (이 형태 그대로 출력할 것)
-    🏛️ *{today} 모닝 브리핑 ({weekday})*
+    [출력 템플릿]
+    🏛️ {today} 모닝 브리핑 ({weekday})
 
-    📊 *Market Watch*
+    📊 Market Watch
 
     1. <링크주소|기사제목>
-    > 핵심 팩트 1~2줄 요약
+    > [Fact] 핵심 팩트 1줄 요약 (수치/기업명 포함)
+    > [Impact] 파스토 비즈니스에 미치는 타격/기회 요소 1줄 요약
     > 🏷️ #태그1 #태그2 #태그3
 
     2. <링크주소|기사제목>
-    > 핵심 팩트 1~2줄 요약
+    > [Fact] 핵심 팩트 1줄 요약
+    > [Impact] 파스토 비즈니스에 미치는 타격/기회 요소 1줄 요약
     > 🏷️ #태그1 #태그2 #태그3
 
     3. <링크주소|기사제목>
-    > 핵심 팩트 1~2줄 요약
+    > [Fact] 핵심 팩트 1줄 요약
+    > [Impact] 파스토 비즈니스에 미치는 타격/기회 요소 1줄 요약
     > 🏷️ #태그1 #태그2 #태그3
 
     4. <링크주소|기사제목>
-    > 핵심 팩트 1~2줄 요약
+    > [Fact] 핵심 팩트 1줄 요약
+    > [Impact] 파스토 비즈니스에 미치는 타격/기회 요소 1줄 요약
     > 🏷️ #태그1 #태그2 #태그3
 
     5. <링크주소|기사제목>
-    > 핵심 팩트 1~2줄 요약
+    > [Fact] 핵심 팩트 1줄 요약
+    > [Impact] 파스토 비즈니스에 미치는 타격/기회 요소 1줄 요약
     > 🏷️ #태그1 #태그2 #태그3
 
-    🔭 *Executive Summary*
-    * 위 뉴스들을 관통하는 시장의 핵심 흐름을 3줄 이내로 통찰력 있게 요약
+    🔭 Executive Summary
+    * 시장 흐름을 관통하는 통찰력 있는 결론 및 파스토가 즉시 취해야 할 핵심 전략 방향 2~3줄
     ===SPLIT===
-    ⚡ *부서별 Action Item*
-    * 💼 *Sales:* 경쟁사 동향에 따른 영업 포인트
-    * 💻 *Tech:* 기술 트렌드/보안 이슈 점검
-    * 👥 *HR:* 채용/조직문화 리스크
-    * 💰 *Finance:* 투자/비용 이슈
-    * 🚛 *SCM:* 운영/물류 현장 이슈
+    ⚡ 부서별 Action Item
+    * 💼 Sales: 구체적인 고객 방어/신규 타겟팅 지시 1줄
+    * 💻 Tech: 당사 IT 경쟁력 확보를 위한 구체적 점검 지시 1줄
+    * 👥 HR: 노무 리스크 방어 또는 필수 인재 확보 지시 1줄
+    * 💰 Finance: 투자/비용 관점의 대응 지시 1줄
+    * 🚛 SCM: 현장 운영 및 물류 단가 방어를 위한 지시 1줄
     """
 
     try:
-        # temperature를 0.3으로 낮춰서 포맷을 엄격하게 지키게 함
         model = genai.GenerativeModel("gemini-2.5-flash") 
-        response = model.generate_content(prompt, generation_config={"temperature": 0.3}) 
+        # temperature를 0.4로 주어 약간의 통찰력을 발휘하면서도 포맷을 지키게 함
+        response = model.generate_content(prompt, generation_config={"temperature": 0.4}) 
         full_text = response.text.replace("**", "*")
         
-        # AI가 혹시라도 ---를 넣었을 경우 강제 삭제
         full_text = full_text.replace("---", "").strip()
         
         if "===SPLIT===" in full_text:
@@ -87,7 +89,6 @@ def analyze_for_leadership(all_articles):
             summary_message = parts[0].strip()
             detail_message = parts[1].strip()
             
-            # 맨 앞/뒤에 붙은 불필요한 기호(*) 강제 제거
             if summary_message.startswith("*"): summary_message = summary_message[1:].strip()
             if detail_message.startswith("*"): detail_message = detail_message[1:].strip()
             
