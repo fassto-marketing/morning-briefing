@@ -1,0 +1,34 @@
+name: Executive Morning Briefing
+
+on:
+  schedule:
+    # 한국 시간 아침 08:30 (UTC 23:30) 실행
+    - cron: '30 23 * * *'
+  workflow_dispatch: # 수동 실행 버튼 (지금 테스트용)
+
+jobs:
+  run-briefing:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install libraries
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run Executive Bot
+      env:
+        # 등록하신 Secrets들을 환경변수로 연결합니다
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+        NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+      run: python main.py
