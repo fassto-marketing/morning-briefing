@@ -14,7 +14,6 @@ def analyze_for_leadership(all_articles):
     # 1. 뉴스 데이터 정리
     news_text_dump = ""
     for idx, item in enumerate(all_articles, 1):
-        # AI가 링크를 정확히 매칭하도록 명확하게 전달
         news_text_dump += f"기사{idx}: 제목='{item['title']}', 링크='{item['link']}'\n"
 
     # 2. 한국 시간 계산
@@ -23,62 +22,75 @@ def analyze_for_leadership(all_articles):
     today = kst_now.strftime("%Y-%m-%d")
     weekday = kst_now.strftime("%A")
 
-    # 3. 뉴스레터 스타일 프롬프트
+    # 3. 팩트 중심 초정밀 프롬프트
     prompt = f"""
-    당신은 파스토(Fassto) 경영진을 위한 **'Daily Intelligence Officer'**입니다.
-    제공된 뉴스 중 **가장 중요한 5개**를 엄선하여, 경영진이 1분 안에 읽을 수 있는 **'뉴스레터 스타일'**로 브리핑하세요.
+    당신은 파스토(Fassto)의 'Daily Intelligence Officer'입니다.
+    제공된 뉴스 중 가장 중요한 5개를 엄선하여 뉴스레터 스타일로 요약하세요.
 
     [입력된 뉴스 데이터]
     {news_text_dump}
 
-    ------------------------------------------------------------------
-    **[작성 원칙 - 중요]**
-    1. **가독성 1순위:** 이미지3처럼 깔끔하게 정리하세요. 군더더기 서술어(~함, ~임)를 배제하세요.
-    2. **링크 포맷 준수:** 슬랙 하이퍼링크 포맷인 `<링크주소|뉴스제목>` 형식을 반드시 지키세요. URL을 별도로 노출하지 마세요.
-    3. **팩트 중심:** AI의 주관적 해석보다는 '기사 내용의 핵심 팩트'를 2줄 이내로 요약하세요.
+    [작성 원칙 - 엄격 준수]
+    1. 인사말("안녕하세요" 등), 맺음말, 설명하는 문장을 절대 출력하지 마세요.
+    2. "---" 같은 불필요한 구분선이나 의미 없는 기호(*)를 절대 쓰지 마세요.
+    3. 주관적 의견을 배제하고 객관적 팩트 위주로 간결하게(개조식) 요약하세요.
+    4. 슬랙 하이퍼링크 포맷인 `<링크주소|기사제목>` 형식을 반드시 지키세요.
+    5. 아래 제공된 [출력 템플릿]의 형태를 100% 똑같이 유지하고 내용만 채워서 바로 출력하세요.
 
-    ------------------------------------------------------------------
-    **[출력 파트 1: 🏛️ 경영진 모닝 브리핑]**
+    [출력 템플릿] (이 형태 그대로 출력할 것)
+    🏛️ *{today} 모닝 브리핑 ({weekday})*
 
-    **📊 Market Watch ({today} {weekday})**
-    (뉴스 5개를 아래 포맷으로 작성)
+    📊 *Market Watch*
 
-    1. <링크|기사제목을_여기에_적으세요>
-    > (핵심 팩트 1~2줄 요약)
-    > 🏷️ #관련기업 #키워드 #이슈
+    1. <링크주소|기사제목>
+    > 핵심 팩트 1~2줄 요약
+    > 🏷️ #태그1 #태그2 #태그3
 
-    2. <링크|기사제목...>
-    > (내용...)
-    > 🏷️ ...
+    2. <링크주소|기사제목>
+    > 핵심 팩트 1~2줄 요약
+    > 🏷️ #태그1 #태그2 #태그3
 
-    (5번까지 작성 후)
+    3. <링크주소|기사제목>
+    > 핵심 팩트 1~2줄 요약
+    > 🏷️ #태그1 #태그2 #태그3
 
-    **🔭 Executive Summary**
-    * (위 뉴스들을 관통하는 시장의 핵심 흐름을 3줄 이내로 통찰력 있게 요약)
+    4. <링크주소|기사제목>
+    > 핵심 팩트 1~2줄 요약
+    > 🏷️ #태그1 #태그2 #태그3
 
-    ------------------------------------------------------------------
-    **===SPLIT===**
-    ------------------------------------------------------------------
+    5. <링크주소|기사제목>
+    > 핵심 팩트 1~2줄 요약
+    > 🏷️ #태그1 #태그2 #태그3
 
-    **[출력 파트 2: 부서별 Action Item (스레드용)]**
-    각 부서 리더가 체크해야 할 사항을 **단호하고 명확한 어조**로 지시하세요.
-
-    * **💼 Sales:** (경쟁사 동향에 따른 영업 포인트)
-    * **💻 Tech:** (기술 트렌드/보안 이슈 점검)
-    * **👥 HR:** (채용/조직문화 리스크)
-    * **💰 Finance:** (투자/비용 이슈)
-    * **🚛 SCM:** (운영/물류 현장 이슈)
+    🔭 *Executive Summary*
+    * 위 뉴스들을 관통하는 시장의 핵심 흐름을 3줄 이내로 통찰력 있게 요약
+    ===SPLIT===
+    ⚡ *부서별 Action Item*
+    * 💼 *Sales:* 경쟁사 동향에 따른 영업 포인트
+    * 💻 *Tech:* 기술 트렌드/보안 이슈 점검
+    * 👥 *HR:* 채용/조직문화 리스크
+    * 💰 *Finance:* 투자/비용 이슈
+    * 🚛 *SCM:* 운영/물류 현장 이슈
     """
 
     try:
+        # temperature를 0.3으로 낮춰서 포맷을 엄격하게 지키게 함
         model = genai.GenerativeModel("gemini-2.5-flash") 
-        response = model.generate_content(prompt, generation_config={"temperature": 0.5}) # 온도를 낮춰서(0.5) 더 차분하고 정확하게
-        full_text = response.text.replace("**", "*") # 슬랙 볼드체 호환
+        response = model.generate_content(prompt, generation_config={"temperature": 0.3}) 
+        full_text = response.text.replace("**", "*")
+        
+        # AI가 혹시라도 ---를 넣었을 경우 강제 삭제
+        full_text = full_text.replace("---", "").strip()
         
         if "===SPLIT===" in full_text:
             parts = full_text.split("===SPLIT===")
             summary_message = parts[0].strip()
             detail_message = parts[1].strip()
+            
+            # 맨 앞/뒤에 붙은 불필요한 기호(*) 강제 제거
+            if summary_message.startswith("*"): summary_message = summary_message[1:].strip()
+            if detail_message.startswith("*"): detail_message = detail_message[1:].strip()
+            
             return summary_message, detail_message
         else:
             return full_text, "상세 내용 생성 실패"
