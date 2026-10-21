@@ -1,34 +1,63 @@
-name: Executive Morning Briefing
+name: Daily Logistics Briefing
 
 on:
   schedule:
-    # 한국 시간 아침 08:30 (UTC 23:30) 실행
-    - cron: '30 23 * * *'
-  workflow_dispatch: # 수동 실행 버튼 (지금 테스트용)
+    - cron: '0 23 * * 0-4'   # 08:00 KST 월~금 (Actions 예약은 보통 30분~2시간 지연 도착)
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: '테스트 발송 채널 (ID 또는 #채널명). 비우면 본 채널(SLACK_CHANNEL_ID)로 발송'
+        required: false
+        type: string
+
+# 지연 도착한 예약 실행과 수동 실행이 겹쳐 2회 발송되는 것 방지
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # state/sent.json 커밋 (중복 방지 + 60일 비활성 자동 비활성화 방지)
 
 jobs:
-  run-briefing:
+  briefing:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
 
-    - name: Install libraries
-      run: |
-        pip install -r requirements.txt
+      - run: pip install -r requirements.txt
 
-    - name: Run Executive Bot
-      env:
-        # 등록하신 Secrets들을 환경변수로 연결합니다
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-        NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
-        NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
-        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-        SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-      run: python main.py
+      - name: Run briefing
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ inputs.channel || secrets.SLACK_CHANNEL_ID }}
+          SLACK_ALERT_CHANNEL_ID: ${{ inputs.channel || secrets.SLACK_ALERT_CHANNEL_ID }}
+        run: python main.py
+
+      # 테스트 발송(channel 입력)은 기록하지 않는다 — 본 채널 발송만 중복 방지 대상
+      - name: Commit state
+        if: ${{ success() && !inputs.channel }}
+        run: |
+          git config user.name "briefing-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/sent.json
+          git diff --cached --quiet || (git commit -m "state: $(TZ=Asia/Seoul date +%F) 발송 기록" && git push)
+
+      # main.py 가 알리지 못하는 단계(설치·크래시)의 실패도 슬랙으로
+      - name: Notify on failure
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          CH: ${{ inputs.channel || secrets.SLACK_ALERT_CHANNEL_ID }}
+        run: |
+          [ -z "$CH" ] && exit 0
+          curl -s -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"channel\":\"$CH\",\"text\":\"⚠️ *[물류 동향 브리핑]* 워크플로우 실패 — 로그 확인 후 Re-run\\nhttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\",\"unfurl_links\":false}" > /dev/null

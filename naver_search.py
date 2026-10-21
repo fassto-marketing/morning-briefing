@@ -1,26 +1,26 @@
 import requests
 import os
 
-# GitHub Secrets에서 가져올 키
 CLIENT_ID = os.environ.get("NAVER_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET")
 
-def search_naver_news(keyword, display=5):
+
+def search_naver_news(keyword, display=10):
     if not CLIENT_ID or not CLIENT_SECRET:
-        print("❌ 네이버 API 키가 없습니다.")
+        print("❌ 네이버 API 키가 없습니다. Secrets 설정을 확인하세요.")
         return None
 
-    url = "https://openapi.naver.com/v1/search/news.json"
-    headers = {
-        "X-Naver-Client-Id": CLIENT_ID,
-        "X-Naver-Client-Secret": CLIENT_SECRET
-    }
-    # 정확도(sim) 순으로 정렬하여 관련성 높은 뉴스 수집
-    params = {"query": keyword, "display": display, "sort": "sim"}
-    
+    # sort=date: 최신순 — 관련도순(sim)은 오래된 기사가 상위로 와서
+    # 24시간 필터에 다 걸러지는 날이 생김 (news-bot v4에서 검증된 설정)
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(
+            "https://openapi.naver.com/v1/search/news.json",
+            headers={"X-Naver-Client-Id": CLIENT_ID, "X-Naver-Client-Secret": CLIENT_SECRET},
+            params={"query": keyword, "display": display, "sort": "date"},
+            timeout=10,
+        )
         if response.status_code != 200:
+            print(f"   ⚠️ 네이버 API {response.status_code}: {response.text[:120]}")
             return None
         return response.json()
     except Exception as e:
