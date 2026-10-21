@@ -2,7 +2,9 @@ name: Daily Logistics Briefing
 
 on:
   schedule:
-    - cron: '0 23 * * 0-4'   # 08:00 KST 월~금 (Actions 예약은 보통 30분~2시간 지연 도착)
+    # 백업: 맥북 스케줄러가 08:00 KST 에 workflow_dispatch 로 먼저 쏜다 (fassto-office blog-pipeline/scheduler.js).
+    # 이 예약(08:40 KST, 보통 30분~2시간 지연)은 맥북이 꺼졌을 때만 의미 있고, 이미 보낸 날은 main.py 가드가 스킵한다.
+    - cron: '40 23 * * 0-4'
   workflow_dispatch:
     inputs:
       channel:

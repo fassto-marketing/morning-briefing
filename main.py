@@ -73,16 +73,20 @@ def _save_state(entries, today):
         json.dump(entries, f, ensure_ascii=False, indent=1)
 
 
-def collect(cutoff, sent_links):
+def _title_key(title):
+    return "".join(ch for ch in title if ch.isalnum())
+
+
+def collect(cutoff, sent_links, sent_keys):
     """cutoff(KST, aware) 이후 게재 기사 (네이버 + 해외 RSS). 네이버 API 가 전부 실패하면 예외 — '뉴스 0건' 으로 둔갑시키지 않는다."""
-    articles, seen_links, seen_titles = [], set(), set()
+    articles, seen_links, seen_titles = [], set(), set(sent_keys)
 
     def add(it, label, kw, site=""):
         link = it.get("originallink") or it.get("link")
         title = _clean(it.get("title", ""))
         if not link or not title:
             return False
-        key = "".join(ch for ch in title if ch.isalnum())
+        key = _title_key(title)
         try:
             pub = parsedate_to_datetime(it["pubDate"])
         except Exception:
@@ -147,8 +151,8 @@ def main():
 
     now = datetime.now(KST)
     today = now.date()
-    # 휴일 스킵은 예약 실행에만 — 수동(테스트) 실행은 휴일에도 직전 평일까지의 기사로 발송
-    if os.environ.get("GITHUB_EVENT_NAME") == "schedule" and _is_offday(now):
+    # 휴일 스킵은 본 채널 발송에만 — 테스트 발송(ALLOW_RESEND)은 휴일에도 직전 평일까지의 기사로 나간다
+    if not os.environ.get("ALLOW_RESEND") and _is_offday(now):
         print(f"📅 {today} 휴일 — 스킵")
         return
 
@@ -161,9 +165,10 @@ def main():
         print("📭 오늘 이미 발송됨 — 스킵")
         return
     sent_links = {e["link"] for e in state}
+    sent_keys = {_title_key(e["title"]) for e in state}
     recent_titles = [e["title"] for e in state][-40:]
 
-    articles = collect(cutoff, sent_links)
+    articles = collect(cutoff, sent_links, sent_keys)
     print(f"   📊 후보 {len(articles)}건 (중복·기발송 제외)")
     if not articles:
         print("수집된 뉴스가 없습니다.")
@@ -209,7 +214,9 @@ def main():
     SENT = True
     print(f"✅ 전송 완료 (ts={ts}) — {len(items)}건")
 
-    state += [{"date": str(today), "title": candidates[it["idx"]]["title"], "link": candidates[it["idx"]]["link"]} for it in items]
+    for it in items:
+        c = candidates[it["idx"]]
+        state += [{"date": str(today), "title": x["title"], "link": x["link"]} for x in [c] + c["extras"]]
     _save_state(state, today)
     print("🏁 완료")
 

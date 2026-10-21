@@ -19,7 +19,8 @@ news-bot(블로그 소재·아이디어 뱅크 연계)은 그대로 두고, 이 
 ## 2. 파이프라인
 
 ```
-08:00 KST (GitHub Actions cron, 실제 도착 08:30~10:00)
+08:00 KST — 맥북 스케줄러(fassto-office blog-pipeline/scheduler.js)가 `gh workflow run` 으로 정시에 트리거
+            (백업: GitHub cron 08:40 KST, 30분~2시간 지연 가능 — 이미 보낸 날은 하루 1회 가드가 스킵)
  │  휴일 스킵 · 주말/연휴만큼 수집 범위 확장 (월요일 = 72h, 연휴 뒤엔 연휴 기간 포함)
  ├─ ① 수집      naver_search.py  6개 카테고리 × 28 키워드 × 최신 10건 (국내)
  │              feeds.py         해외 매체 RSS 6개 × 최신 15건 (The Robot Report·DC Velocity·Supply Chain Dive 등)
@@ -90,8 +91,8 @@ gh workflow run daily_briefing.yml -R fassto-marketing/morning-briefing -f chann
 
 **장애**: `main.py`가 알림 채널에 사유를 올리고 exit 1 → Actions에서 *Re-run*. 설치·크래시 단계 실패는 워크플로우가 별도로 알립니다.
 
-**스케줄 지연**: GitHub cron 특성상 08:00 예약이 30분~2시간 늦게 돌 수 있습니다. 정시 발송이 중요해지면
-맥북 스케줄러(fassto-office `blog-pipeline/scheduler.js`)로 이관하면 됩니다 — 코드는 env만 주면 로컬에서 그대로 돕니다.
+**정시 발송**: 상시 가동 맥북의 스케줄러가 평일 08:00 KST 에 `gh workflow run daily_briefing.yml` 로 트리거합니다(workflow_dispatch 는 즉시 시작).
+GitHub cron(08:40 KST)은 맥북이 꺼진 날의 백업이며, 같은 날 두 번 돌아도 `state/sent.json` 의 오늘 날짜 가드가 두 번째를 스킵합니다.
 
 **로컬 실행**
 ```bash
@@ -105,5 +106,6 @@ GOOGLE_API_KEY=… NAVER_CLIENT_ID=… NAVER_CLIENT_SECRET=… SLACK_BOT_TOKEN=�
 - 스레드 상세·부서별 액션 아이템(v1) — 전사 공유용에는 과함
 - 블로그 초안·아이디어 뱅크 연계 — news-bot 담당
 - 공휴일 목록은 하드코딩(2026~2027, news-bot과 동일) — 매년 1월 갱신 필요
-- 휴일 스킵은 예약 실행에만 적용 — 수동(테스트) 실행은 휴일에도 직전 평일 이후 기사로 발송
+- 휴일 스킵은 본 채널 발송에만 적용 — 테스트 채널 발송은 휴일에도 직전 평일 이후 기사로 발송
+- 중복 방지 3중: 같은 실행 안 링크·제목 키 / 14일 발송 기록의 링크·제목 키(추가 출처 포함) / AI 1차 선정에 최근 발송 제목 40개 전달
 - 하루 1회 가드: `state/sent.json`에 오늘 날짜가 있으면 본 채널 발송 스킵(지연 도착한 예약 + 수동 실행 겹침 대비). 테스트 채널 발송은 예외
