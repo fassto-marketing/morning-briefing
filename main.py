@@ -8,6 +8,7 @@ import sys
 import time
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import ai_editor
@@ -151,7 +152,7 @@ def main():
     if not items:
         raise RuntimeError("브리핑 작성 결과 없음")
     for it in items:  # 매체명: AI가 정리한 이름 우선(og:site_name 은 "(주) 서울경제티브이" 식 법인명이 섞임), 없으면 메타
-        it["source"] = it["source"] or candidates[it["idx"]].get("site") or ""
+        it["source"] = it["source"] or candidates[it["idx"]].get("site") or urlparse(candidates[it["idx"]]["link"]).hostname or ""
         print(f"   📰 {EMOJI_OF.get(it['category'], '📰')} {it['category']} | {it['headline']} ({it['source'] or '출처 불명'}) {candidates[it['idx']]['link']}")
 
     text, blocks = slack_sender.build_message(date_label, range_label, [(it, candidates[it["idx"]]["link"]) for it in items], EMOJI_OF)
