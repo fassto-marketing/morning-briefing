@@ -78,6 +78,11 @@ news-bot(블로그 소재·아이디어 뱅크 연계)은 그대로 두고, 이 
 gh workflow run daily_briefing.yml -R fassto-marketing/morning-briefing -f channel=G01J39A4T2P
 ```
 
+**본 채널(#info_news) 전환 체크리스트**
+1. `#info_news`에서 `/invite @햄기자블로그봇` (현재 미참여 — not_in_channel)
+2. Secret `SLACK_CHANNEL_ID` 값을 `#info_news`(또는 채널 ID)로 변경 — 지금은 테스트방 `G01J39A4T2P`로 매일 발송 중
+3. 같은 채널에 기존 브리핑을 올리던 쪽을 중단 (하루 2건 중복 방지)
+
 **장애**: `main.py`가 알림 채널에 사유를 올리고 exit 1 → Actions에서 *Re-run*. 설치·크래시 단계 실패는 워크플로우가 별도로 알립니다.
 
 **스케줄 지연**: GitHub cron 특성상 08:00 예약이 30분~2시간 늦게 돌 수 있습니다. 정시 발송이 중요해지면
