@@ -31,7 +31,11 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      # 대기열에 있던 실행은 트리거 시점 SHA 로 체크아웃되므로, 앞선 실행이 커밋한 state 를 받아온다
+      - run: git pull -q --ff-only origin main
+
       - name: Run briefing
+        id: run
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
@@ -39,6 +43,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ inputs.channel || secrets.SLACK_CHANNEL_ID }}
           SLACK_ALERT_CHANNEL_ID: ${{ inputs.channel || secrets.SLACK_ALERT_CHANNEL_ID }}
+          ALLOW_RESEND: ${{ inputs.channel }}   # 테스트 발송은 '오늘 이미 발송' 가드 우회
         run: python main.py
 
       # 테스트 발송(channel 입력)은 기록하지 않는다 — 본 채널 발송만 중복 방지 대상
@@ -48,16 +53,18 @@ jobs:
           git config user.name "briefing-bot"
           git config user.email "actions@users.noreply.github.com"
           git add state/sent.json
-          git diff --cached --quiet || (git commit -m "state: $(TZ=Asia/Seoul date +%F) 발송 기록" && git push)
+          git diff --cached --quiet || (git commit -m "state: $(TZ=Asia/Seoul date +%F) 발송 기록" && git pull -q --rebase origin main && git push)
 
-      # main.py 가 알리지 못하는 단계(설치·크래시)의 실패도 슬랙으로
+      # main.py 실패는 main.py 가 직접 알린다. 여기서는 그 밖의 단계(설치·pull·state 커밋) 실패만 —
+      # 발송 후 커밋만 실패한 경우는 Re-run 하면 중복 발송이므로 문구를 나눈다
       - name: Notify on failure
-        if: failure()
+        if: failure() && steps.run.outcome != 'failure'
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           CH: ${{ inputs.channel || secrets.SLACK_ALERT_CHANNEL_ID }}
+          MSG: ${{ steps.run.outcome == 'success' && '브리핑은 발송됐지만 state 커밋 실패 — *Re-run 금지*(중복 발송), state/sent.json 수동 확인' || '워크플로우 실패(설치·체크아웃) — 로그 확인 후 Re-run' }}
         run: |
           [ -z "$CH" ] && exit 0
           curl -s -X POST https://slack.com/api/chat.postMessage \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" \
-            -d "{\"channel\":\"$CH\",\"text\":\"⚠️ *[물류 동향 브리핑]* 워크플로우 실패 — 로그 확인 후 Re-run\\nhttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\",\"unfurl_links\":false}" > /dev/null
+            -d "{\"channel\":\"$CH\",\"text\":\"⚠️ *[물류 동향 브리핑]* $MSG\\nhttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\",\"unfurl_links\":false}"

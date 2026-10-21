@@ -26,6 +26,8 @@ def fetch(url, max_chars=2500):
 
     for t in soup(["script", "style", "nav", "footer", "header", "aside", "iframe", "figure"]):
         t.decompose()
+    for t in soup.select('[hidden], [aria-hidden="true"], [style*="display:none"], [style*="display: none"]'):
+        t.decompose()  # 숨긴 텍스트(프롬프트 주입·광고)는 근거에서 제외
 
     node = None
     for sel in BODY_SELECTORS:
@@ -39,5 +41,5 @@ def fetch(url, max_chars=2500):
     text = re.sub(r"\s+", " ", text).strip()[:max_chars]
 
     site = soup.find("meta", attrs={"property": "og:site_name"})
-    site_name = site["content"].strip() if site and site.get("content") else ""
+    site_name = site["content"].strip()[:40] if site and site.get("content") else ""
     return text, site_name

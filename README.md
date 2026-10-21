@@ -21,11 +21,13 @@ news-bot(블로그 소재·아이디어 뱅크 연계)은 그대로 두고, 이 
 ```
 08:00 KST (GitHub Actions cron, 실제 도착 08:30~10:00)
  │  휴일 스킵 · 주말/연휴만큼 수집 범위 확장 (월요일 = 72h, 연휴 뒤엔 연휴 기간 포함)
- ├─ ① 수집      naver_search.py  6개 카테고리 × 28 키워드 × 최신 10건 → 링크·제목·기발송 중복 제거
- ├─ ② 1차 선정  ai_editor.pick_candidates  제목·요약으로 후보 8건 (카테고리 고루, 같은 사건 1건, 파스토 언급 필수 포함)
- ├─ ③ 본문 읽기 article.fetch   originallink 본문 2,500자 + og:site_name(매체명). 실패 시 요약으로 대체
- ├─ ④ 작성      ai_editor.write_briefing  핵심 5건: headline / 불릿 2개 / 파스토 시사점 / 출처 (JSON)
- ├─ ⑤ 발송      slack_sender.py  chat.postMessage — header · context · rich_text(list/quote/link)
+ ├─ ① 수집      naver_search.py  6개 카테고리 × 28 키워드 × 최신 10건 (국내)
+ │              feeds.py         해외 매체 RSS 6개 × 최신 15건 (The Robot Report·DC Velocity·Supply Chain Dive 등)
+ │              → 링크·제목·기발송 중복 제거, 직전 평일 07:00 이후 게재분만
+ ├─ ② 1차 선정  ai_editor.pick_candidates  제목·요약으로 후보 8건 (카테고리 고루, 같은 사건은 1건 + 추가 출처 ≤2, 파스토 언급 필수 포함)
+ ├─ ③ 본문 읽기 article.fetch   기사 본문 2,500자 + og:site_name(매체명). 추가 출처도 읽음. 실패 시 요약으로 대체
+ ├─ ④ 작성      ai_editor.write_briefing  핵심 5건: headline / 불릿 2개 / 파스토 시사점 / 출처 + 오늘의 한 줄 인사이트 (JSON)
+ ├─ ⑤ 발송      slack_sender.py  chat.postMessage — header · context · rich_text(list/quote/link) · 🎯 한 줄 인사이트
  └─ ⑥ 기록      state/sent.json (14일 보관) → 워크플로우가 커밋
 ```
 
@@ -35,15 +37,16 @@ news-bot(블로그 소재·아이디어 뱅크 연계)은 그대로 두고, 이 
 
 ```
 📦 물류 업계 동향 브리핑                      ← header
-2026-10-12 (월) · 핵심 뉴스 5건 (10/9~10/12 주말·휴일 포함)   ← context
+2026-10-12 (월) · 핵심 뉴스 5건 (10/9~10/12 주말 포함)   ← context
 ──────────
 🧠 물류 IT·AI | 카덱스, 기존 WMS를 유지한 채 WES로 오토스토어를 연동한 사례
  • 미국 워런 캣은 520㎡ 공간에 오토스토어 R5 20대와 … 하루 피킹 3,648라인을 처리합니다.
  • 카덱스 WES 'FulfillX'가 기존 WMS와 오토스토어 사이의 실행 계층을 맡아 …
  ┃ 💡 파스토 시사점: 'WMS는 유지하고 WES만 붙이는' 구조는 … 참고 모델이 됩니다.
- 🔗 로봇신문
+ 🔗 로봇신문 · TechNode          ← 같은 사건을 다룬 기사가 여럿이면 출처를 나란히
 ──────────
 (× 5건)
+ ┃ 🎯 오늘의 한 줄 인사이트: 로봇 하드웨어는 빠르게 범용화되고 … 소프트웨어에서 나옵니다.
 ```
 
 ## 4. 카테고리 · 키워드
@@ -56,8 +59,10 @@ news-bot(블로그 소재·아이디어 뱅크 연계)은 그대로 두고, 이 
 | 🤖 AMR·물류로봇 | 물류 로봇, AMR 물류, 물류 자동화, 피킹 로봇, 휴머노이드 물류 |
 | 🧠 물류 IT·AI | WMS, 물류 AI, 스마트 물류, 오토스토어, 물류 디지털 전환 |
 | 🛒 이커머스·플랫폼 | 이커머스 물류, 알리익스프레스 물류, 테무 물류, 네이버 도착보장, 쿠팡 로켓배송 |
-| 📜 정책·규제 | 이커머스 규제, 유통 규제, 택배 기사, 물류 중대재해 |
+| 🏛️ 정책·규제 | 이커머스 규제, 유통 규제, 택배 기사, 물류 중대재해 |
 | 🏢 파스토 | 파스토 |
+
+해외 RSS(`feeds.py`의 `FEEDS`): The Robot Report·Robotics & Automation News → AMR·물류로봇, DC Velocity·Supply Chain Dive·Supply Chain 24/7 → 풀필먼트 경쟁사, TechNode → AMR·물류로봇. 키 없이 동작하며, 죽은 피드는 로그만 남기고 건너뜁니다.
 
 ## 5. 운영
 
@@ -81,7 +86,7 @@ gh workflow run daily_briefing.yml -R fassto-marketing/morning-briefing -f chann
 **본 채널(#info_news) 전환 체크리스트**
 1. `#info_news`에서 `/invite @햄기자블로그봇` (현재 미참여 — not_in_channel)
 2. Secret `SLACK_CHANNEL_ID` 값을 `#info_news`(또는 채널 ID)로 변경 — 지금은 테스트방 `G01J39A4T2P`로 매일 발송 중
-3. 같은 채널에 기존 브리핑을 올리던 쪽을 중단 (하루 2건 중복 방지)
+3. 같은 채널에 기존 브리핑을 올리던 쪽을 중단 (하루 2건 중복 방지) — 기존 메시지 하단 "다음을 사용하여 보냄 @Claude" 로 보아 claude.ai 예약 작업(루틴)입니다
 
 **장애**: `main.py`가 알림 채널에 사유를 올리고 exit 1 → Actions에서 *Re-run*. 설치·크래시 단계 실패는 워크플로우가 별도로 알립니다.
 
@@ -100,3 +105,5 @@ GOOGLE_API_KEY=… NAVER_CLIENT_ID=… NAVER_CLIENT_SECRET=… SLACK_BOT_TOKEN=�
 - 스레드 상세·부서별 액션 아이템(v1) — 전사 공유용에는 과함
 - 블로그 초안·아이디어 뱅크 연계 — news-bot 담당
 - 공휴일 목록은 하드코딩(2026~2027, news-bot과 동일) — 매년 1월 갱신 필요
+- 휴일 스킵은 예약 실행에만 적용 — 수동(테스트) 실행은 휴일에도 직전 평일 이후 기사로 발송
+- 하루 1회 가드: `state/sent.json`에 오늘 날짜가 있으면 본 채널 발송 스킵(지연 도착한 예약 + 수동 실행 겹침 대비). 테스트 채널 발송은 예외
