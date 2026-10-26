@@ -22,23 +22,31 @@ RETRY_DELAY = 30
 RETRYABLE = ("429", "500", "503", "504", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "INTERNAL", "DEADLINE_EXCEEDED", "overloaded", "timed out", "timeout")
 
 
-def _call_gemini(prompt):
-    """JSON 파싱까지 끝내서 dict 반환. 일시 오류·빈 응답·깨진 JSON은 재시도 후 다음 모델로 폴백."""
+def _call_gemini(prompt, extract):
+    """extract(dict) 가 비어 있지 않은 결과를 낼 때까지 호출. 일시 오류·빈 응답·깨진 JSON·유효 항목 0건은
+    재시도 후 다음 모델로 폴백 (2026-10-27: 2.5-flash 폴백이 형식 불량 JSON 을 내 '결과 없음'으로 끝난 사고)."""
     last = None
     for model_name in MODELS:
         for attempt in range(MAX_RETRIES_PER_MODEL):
+            raw = None
             try:
                 print(f"   🤖 {model_name} 호출 (시도 {attempt + 1}/{MAX_RETRIES_PER_MODEL})...")
                 config = {"temperature": 0.4, "response_mime_type": "application/json"}
                 if model_name.startswith("gemini-2.5"):
                     config["thinking_config"] = {"thinking_budget": 4096}
                 res = client.models.generate_content(model=model_name, contents=prompt, config=config)
-                if not res.text:  # 안전 차단·빈 candidates 면 text 가 None
+                raw = res.text
+                if not raw:  # 안전 차단·빈 candidates 면 text 가 None
                     raise ValueError(f"빈 응답 ({res.candidates[0].finish_reason if res.candidates else res.prompt_feedback})")
-                return _parse_json(res.text)
+                out = extract(_parse_json(raw))
+                if not out:
+                    raise ValueError("유효 항목 0건")
+                return out
             except Exception as e:
                 last, err = e, str(e)
-                # ValueError = 빈 응답 / JSONDecodeError(잘린 JSON) — 같은 모델로 1회 더
+                if raw and isinstance(e, ValueError):  # 응답은 왔는데 못 쓴 경우 — 원문을 남겨야 다음에 원인을 안다
+                    print(f"   📄 {model_name} 응답 원문({len(raw)}자): {raw[:600]!r}")
+                # ValueError = 빈 응답 / JSONDecodeError(잘린 JSON) / 유효 항목 0건 — 같은 모델로 1회 더
                 if (isinstance(e, ValueError) or any(k in err for k in RETRYABLE)) and attempt < MAX_RETRIES_PER_MODEL - 1:
                     print(f"   ⏳ {model_name} 일시 오류({err[:80]}) — {RETRY_DELAY}초 후 재시도")
                     time.sleep(RETRY_DELAY)
@@ -90,8 +98,11 @@ def pick_candidates(articles, recent_titles, n=8):
 [출력 — JSON만]
 {{"picks": [{{"idx": 번호, "also": [번호, ...]}}, ...]}}
 """
-    data = _call_gemini(prompt)
-    ok = lambda v: isinstance(v, int) and 0 <= v < len(articles)
+    return _call_gemini(prompt, lambda data: _extract_picks(data, len(articles), n))
+
+
+def _extract_picks(data, n_articles, n):
+    ok = lambda v: isinstance(v, int) and 0 <= v < n_articles
     out, seen = [], set()
     for p in data.get("picks", []):
         idx = p.get("idx") if isinstance(p, dict) else p
@@ -143,7 +154,11 @@ def write_briefing(candidates, categories, n=5):
 [출력 — JSON만]
 {{"items": [{{"idx": 후보번호, "category": "", "headline": "", "bullets": ["", ""], "insight": "", "source": ""}}], "daily_insight": ""}}
 """
-    data = _call_gemini(prompt)
+    return _call_gemini(prompt, lambda data: _extract_items(data, candidates, categories, n))
+
+
+def _extract_items(data, candidates, categories, n):
+    """반환: (items, daily_insight). items 가 비면 None → _call_gemini 가 재시도·폴백."""
     items = []
     for it in data.get("items", []):
         if not isinstance(it, dict):
@@ -172,4 +187,6 @@ def write_briefing(candidates, categories, n=5):
             continue
     seen = set()
     items = [i for i in items if not (i["idx"] in seen or seen.add(i["idx"]))][:n]
+    if not items:
+        return None
     return items, str(data.get("daily_insight") or "").strip()[:200]
