@@ -22,7 +22,7 @@ RETRY_DELAY = 30
 RETRYABLE = ("429", "500", "503", "504", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "INTERNAL", "DEADLINE_EXCEEDED", "overloaded", "timed out", "timeout")
 
 
-def _call_gemini(prompt, extract):
+def _call_gemini(prompt, extract, schema=None):
     """extract(dict) 가 비어 있지 않은 결과를 낼 때까지 호출. 일시 오류·빈 응답·깨진 JSON·유효 항목 0건은
     재시도 후 다음 모델로 폴백 (2026-10-27: 2.5-flash 폴백이 형식 불량 JSON 을 내 '결과 없음'으로 끝난 사고)."""
     last = None
@@ -34,6 +34,8 @@ def _call_gemini(prompt, extract):
                 config = {"temperature": 0.4, "response_mime_type": "application/json"}
                 if model_name.startswith("gemini-2.5"):
                     config["thinking_config"] = {"thinking_budget": 4096}
+                if schema:  # 필수 필드를 API 단에서 강제 (2026-11-04~05: 2.5-flash 가 idx 를 빼서 전부 버려진 사고)
+                    config["response_schema"] = schema
                 res = client.models.generate_content(model=model_name, contents=prompt, config=config)
                 raw = res.text
                 if not raw:  # 안전 차단·빈 candidates 면 text 가 None
@@ -152,9 +154,25 @@ def write_briefing(candidates, categories, n=5):
 {chr(10).join(blocks)}
 
 [출력 — JSON만]
-{{"items": [{{"idx": 후보번호, "category": "", "headline": "", "bullets": ["", ""], "insight": "", "source": ""}}], "daily_insight": ""}}
+{{"items": [{{"idx": 0, "category": "", "headline": "", "bullets": ["", ""], "insight": "", "source": ""}}], "daily_insight": ""}}
 """
-    return _call_gemini(prompt, lambda data: _extract_items(data, candidates, categories, n))
+    return _call_gemini(prompt, lambda data: _extract_items(data, candidates, categories, n), BRIEFING_SCHEMA)
+
+
+_S = {"type": "STRING"}
+BRIEFING_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "items": {"type": "ARRAY", "items": {
+            "type": "OBJECT",
+            "properties": {"idx": {"type": "INTEGER"}, "category": _S, "headline": _S,
+                           "bullets": {"type": "ARRAY", "items": _S}, "insight": _S, "source": _S},
+            "required": ["idx", "category", "headline", "bullets", "insight", "source"],
+        }},
+        "daily_insight": _S,
+    },
+    "required": ["items", "daily_insight"],
+}
 
 
 def _extract_items(data, candidates, categories, n):

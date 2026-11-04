@@ -4,6 +4,7 @@ import ai_editor as ae
 
 ae.RETRY_DELAY = 0
 calls = []
+configs = []
 
 
 class _Res:
@@ -15,6 +16,7 @@ def _fake_client(responses):
     it = iter(responses)
     def gen(model, contents, config):
         calls.append(model)
+        configs.append(config)
         return _Res(next(it))
     return types.SimpleNamespace(models=types.SimpleNamespace(generate_content=gen))
 
@@ -44,4 +46,9 @@ assert len(calls) == 4, calls
 calls.clear()
 ae.client = _fake_client(['{"picks":[]}', '{"picks":[{"idx":0,"also":[1]}]}'])
 assert ae.pick_candidates([{"category": "c", "title": "t", "pubdate": "p", "description": "d"}] * 2, [], n=3) == [(0, [1])]
+# 4) 브리핑 호출은 idx 를 필수로 강제하는 스키마를 실어 보낸다 (2026-11-04~05: idx 누락 → 전부 버려짐)
+configs.clear()
+ae.client = _fake_client([good])
+ae.write_briefing(cands, ["AMR·물류로봇"], n=5)
+assert "idx" in configs[0]["response_schema"]["properties"]["items"]["items"]["required"], configs
 print("OK")
