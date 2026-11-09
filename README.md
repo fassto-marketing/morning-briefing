@@ -19,8 +19,8 @@ news-bot(블로그 소재·아이디어 뱅크 연계)은 그대로 두고, 이 
 ## 2. 파이프라인
 
 ```
-08:00 KST — 맥북 스케줄러(fassto-office blog-pipeline/scheduler.js)가 `gh workflow run` 으로 정시에 트리거
-            (백업: GitHub cron 08:40 KST, 30분~2시간 지연 가능 — 이미 보낸 날은 하루 1회 가드가 스킵)
+08:00 KST — 맥북 스케줄러(fassto-office blog-pipeline/scheduler.js)가 run_local.sh 로 맥북에서 직접 실행 (AI = claude 헤드리스)
+            (실패·미설정 시 GitHub Actions(AI = Gemini) 대체 실행. 백업: GitHub cron 08:40 KST, 보통 3~4시간 지연 — 이미 보낸 날은 하루 1회 가드가 스킵)
  │  휴일 스킵 · 주말/연휴만큼 수집 범위 확장 (월요일 = 72h, 연휴 뒤엔 연휴 기간 포함)
  ├─ ① 수집      naver_search.py  6개 카테고리 × 28 키워드 × 최신 10건 (국내)
  │              feeds.py         해외 매체 RSS 6개 × 최신 15건 (The Robot Report·DC Velocity·Supply Chain Dive 등)
@@ -29,7 +29,7 @@ news-bot(블로그 소재·아이디어 뱅크 연계)은 그대로 두고, 이 
  ├─ ③ 본문 읽기 article.fetch   기사 본문 2,500자 + og:site_name(매체명). 추가 출처도 읽음. 실패 시 요약으로 대체
  ├─ ④ 작성      ai_editor.write_briefing  핵심 5건: headline / 불릿 2개 / 파스토 시사점 / 출처 + 오늘의 한 줄 인사이트 (JSON)
  ├─ ⑤ 발송      slack_sender.py  chat.postMessage — header · context · rich_text(list/quote/link) · 🎯 한 줄 인사이트
- └─ ⑥ 기록      state/sent.json (14일 보관) → 워크플로우가 커밋
+ └─ ⑥ 기록      state/sent.json (14일 보관) → run_local.sh(맥북) 또는 워크플로우가 커밋·푸시
 ```
 
 팩트 그라운딩: 불릿은 **본문에 있는 수치·고유명사만** 쓰도록 프롬프트에서 강제하고, 본문 수집에 실패한 기사는 요약만 근거로 씁니다.
@@ -89,15 +89,19 @@ gh workflow run daily_briefing.yml -R fassto-marketing/morning-briefing -f chann
 2. Secret `SLACK_CHANNEL_ID` 값을 `#info_news`(또는 채널 ID)로 변경 — 지금은 테스트방 `G01J39A4T2P`로 매일 발송 중
 3. 같은 채널에 기존 브리핑을 올리던 쪽을 중단 (하루 2건 중복 방지) — 기존 메시지 하단 "다음을 사용하여 보냄 @Claude" 로 보아 claude.ai 예약 작업(루틴)입니다
 
-**장애**: `main.py`가 알림 채널에 사유를 올리고 exit 1 → Actions에서 *Re-run*. 설치·크래시 단계 실패는 워크플로우가 별도로 알립니다.
+**장애**: `main.py`가 알림 채널에 사유를 올리고 exit 1(발송 후 실패면 3 — Re-run 금지). 설치·크래시 단계 실패는 워크플로우가 별도로 알립니다.
 
-**정시 발송**: 상시 가동 맥북의 스케줄러가 평일 08:00 KST 에 `gh workflow run daily_briefing.yml` 로 트리거합니다(workflow_dispatch 는 즉시 시작).
-GitHub cron(08:40 KST)은 맥북이 꺼진 날의 백업이며, 같은 날 두 번 돌아도 `state/sent.json` 의 오늘 날짜 가드가 두 번째를 스킵합니다.
+**정시 발송 — 맥북 + Claude (2026-11-09~)**: 11/4~9 Gemini 가 평일 08시 503/504 과부하로 연일 실패해, 상시 가동 맥북에서 직접 돌리고
+AI 편집을 claude 헤드리스로 바꿨습니다. 구독 토큰(`CLAUDE_CODE_OAUTH_TOKEN`, fassto-office 루트 `.env` — 스케줄러가 env 로 넘김)이라 API 종량 과금이 아닙니다.
+- 스케줄러가 평일 08:00 `run_local.sh` 실행 → `git pull` → `.venv/bin/python main.py` → 발송 성공 시 `state/sent.json` 커밋·푸시 (GitHub 백업이 오늘 발송을 알아야 중복 발송을 안 함)
+- 로컬 설정: `~/morning-briefing/.env`(gitignore)에 `NAVER_CLIENT_ID`·`NAVER_CLIENT_SECRET`·`SLACK_CHANNEL_ID`·`SLACK_ALERT_CHANNEL_ID`. 네이버 키가 비어 있으면 처음부터 GitHub 실행으로 대체
+- 대체 실행: 발송 전 실패(exit 1)면 `run_local.sh` 가 즉시 `gh workflow run`(Gemini) — 맥북의 `GOOGLE_API_KEY` 는 선택(있으면 claude 다음 폴백)
+- GitHub cron(08:40 KST)은 맥북이 꺼진 날의 백업이고, 11:30 워치독은 로컬 state 에 오늘 기록이 있으면 정상으로 봅니다
+- 의존성: `/usr/bin/python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` (최초 1회)
 
-**로컬 실행**
+**맥북 테스트 발송** (state 미기록 — `ALLOW_RESEND` 면 main.py 가 기록하지 않음)
 ```bash
-pip install -r requirements.txt
-GOOGLE_API_KEY=… NAVER_CLIENT_ID=… NAVER_CLIENT_SECRET=… SLACK_BOT_TOKEN=… SLACK_CHANNEL_ID=G01J39A4T2P python main.py
+cd ~/morning-briefing && set -a && . ./.env && set +a && SLACK_CHANNEL_ID=G01J39A4T2P SLACK_ALERT_CHANNEL_ID=G01J39A4T2P ALLOW_RESEND=1 .venv/bin/python main.py
 ```
 
 ## 6. 의도적으로 뺀 것

@@ -1,6 +1,7 @@
 """
-물류 업계 동향 브리핑 v2 — 수집(네이버) → 후보 선정(Gemini) → 본문 읽기 → 작성(Gemini) → Slack Block Kit
-실행: SLACK_CHANNEL_ID 채널로 발송. 테스트는 env SLACK_CHANNEL_ID 를 테스트 채널로 바꿔 실행.
+물류 업계 동향 브리핑 v2 — 수집(네이버) → 후보 선정(AI) → 본문 읽기 → 작성(AI) → Slack Block Kit
+AI 는 맥북 로컬 실행(run_local.sh)이면 claude CLI, GitHub Actions 면 Gemini (ai_editor.py).
+실행: SLACK_CHANNEL_ID 채널로 발송. 테스트는 env SLACK_CHANNEL_ID 를 테스트 채널로 바꾸고 ALLOW_RESEND=1 로 실행.
 """
 import json
 import os
@@ -209,15 +210,28 @@ def main():
 
     text, blocks = slack_sender.build_message(date_label, range_label, rows, EMOJI_OF, daily_insight)
     print("📨 슬랙 전송 중...")
-    ts = slack_sender.post_briefing(SLACK_CHANNEL_ID, text, blocks)
     global SENT
+    try:
+        ts = slack_sender.post_briefing(SLACK_CHANNEL_ID, text, blocks)
+    except (RuntimeError, slack_sender.requests.ConnectTimeout):
+        raise  # ok:false 거절·연결 실패 = 확실히 미발송 → 실패 처리(대체 실행 안전)
+    except Exception as e:  # 응답 유실(timeout·연결 끊김·비JSON 5xx) — 올라갔을 수 있으니 발송으로 기록해 대체·백업 실행의 중복 발송을 막는다
+        if "NewConnectionError" in str(e) or "NameResolutionError" in str(e):
+            raise  # 연결 거절·DNS 실패 = 요청이 안 나감 → 실패 처리
+        ts = None
+        print(f"⚠️ 발송 응답 유실: {e}")
     SENT = True
     print(f"✅ 전송 완료 (ts={ts}) — {len(items)}건")
 
+    if os.environ.get("ALLOW_RESEND"):  # 테스트 발송은 기록하지 않는다 — 맥북 작업본에 남으면 다음 본 발송이 커밋해 버림
+        print("🏁 완료 (테스트 발송 — state 미기록)")
+        return
     for it in items:
         c = candidates[it["idx"]]
         state += [{"date": str(today), "title": x["title"], "link": x["link"]} for x in [c] + c["extras"]]
     _save_state(state, today)
+    if ts is None:
+        slack_sender.post_alert(SLACK_ALERT_CHANNEL_ID, "⚠️ *[물류 동향 브리핑]* 발송 응답을 못 받았습니다 — 채널에 올라갔는지 확인하고, 없으면 수동 재발송해 주세요 (오늘은 발송으로 기록함).")
     print("🏁 완료")
 
 
@@ -228,6 +242,11 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(f"❌ 실패: {e}")
-        advice = "이미 발송은 됐습니다 — *Re-run 금지*, state/sent.json 만 확인" if SENT else "GitHub Actions 에서 Re-run 해주세요"
+        if SENT:
+            advice = "이미 발송은 됐습니다 — *Re-run 금지*, state/sent.json 만 확인"
+        elif os.environ.get("GITHUB_ACTIONS"):
+            advice = "GitHub Actions 에서 Re-run 해주세요"
+        else:
+            advice = "맥북 실행 실패 — run_local.sh 가 GitHub Actions(Gemini)로 대체 실행합니다"
         slack_sender.post_alert(SLACK_ALERT_CHANNEL_ID, f"⚠️ *[물류 동향 브리핑]* 오늘 실행 실패: `{str(e)[:200]}`\n{advice}.")
-        sys.exit(1)
+        sys.exit(3 if SENT else 1)  # 3 = 발송 후 실패 → run_local.sh 가 대체 실행하지 않는다(중복 발송 방지)

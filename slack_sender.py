@@ -71,6 +71,10 @@ def post_briefing(channel, text, blocks):
 def post_alert(channel, text):
     if not channel:
         return
-    r = _api("chat.postMessage", {"channel": channel, "text": text, "unfurl_links": False})
+    try:
+        r = _api("chat.postMessage", {"channel": channel, "text": text, "unfurl_links": False})
+    except Exception as e:  # 알림은 최선 노력 — 여기서 죽으면 종료 코드가 바뀌어 run_local.sh 의 대체 실행 판단이 틀어진다
+        print(f"   ⚠️ 알림 전송 실패: {e}")
+        return
     if not r.get("ok"):
         print(f"   ⚠️ 알림 전송 실패: {r.get('error')}")
