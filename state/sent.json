@@ -1,60 +1,5 @@
 [
  {
-  "date": "2026-11-02",
-  "title": "테크타카, 네이버 N배송 반품·패션 물류 전담…새벽배송까지 지원",
-  "link": "https://www.ddaily.co.kr/page/view/2026103014581975114"
- },
- {
-  "date": "2026-11-02",
-  "title": "테크타카, 네이버 N배송 통합반품·패션전문센터 운영 맡는다",
-  "link": "https://byline.network/?p=9004111222625485"
- },
- {
-  "date": "2026-11-02",
-  "title": "테크타카, 네이버와 N배송 통합반품·패션전문센터 운영 계약 체결",
-  "link": "https://www.datanet.co.kr/news/articleView.html?idxno=215490"
- },
- {
-  "date": "2026-11-02",
-  "title": "부산시, 쿠팡·LS 등 3개사 1630억 투자유치…776명 고용 기대",
-  "link": "https://www.iusm.co.kr/news/articleView.html?idxno=1069885"
- },
- {
-  "date": "2026-11-02",
-  "title": "쿠팡CLS, 부산에 신규 스마트 물류센터 구축…지역 인재 670명 고용 기대",
-  "link": "https://www.thepublic.kr/news/articleView.html?idxno=324589"
- },
- {
-  "date": "2026-11-02",
-  "title": "쿠팡CLS, 부산 남구 용당동에 420억 투자…스마트 물류센터 구축",
-  "link": "https://www.etoday.co.kr/news/view/2642531"
- },
- {
-  "date": "2026-11-02",
-  "title": "물류센터도 AX 바람…콜로세움, ‘볼트’ 자동화 시연 나서",
-  "link": "https://www.mk.co.kr/article/12191447"
- },
- {
-  "date": "2026-11-02",
-  "title": "['황' 기자의 헬로로지스틱스] Part 2. 가동 중인 설비를 직접 걷다…아...",
-  "link": "https://www.hellot.net/news/article.html?no=115924"
- },
- {
-  "date": "2026-11-02",
-  "title": "['황' 기자의 헬로로지스틱스] Part 1. 데이터·시스템·설비를 잇다 —...",
-  "link": "https://www.hellot.net/news/article.html?no=115923"
- },
- {
-  "date": "2026-11-02",
-  "title": "36년의 경험으로 바라본 인공지능 물류 혁신",
-  "link": "https://www.abcn.kr/news/articleView.html?idxno=93915"
- },
- {
-  "date": "2026-11-02",
-  "title": "뉴로플로우, 멀티모달 AI로 산업현장 위험성평가·안전문서 자동화 [서...",
-  "link": "https://it.chosun.com/news/articleView.html?idxno=2023092172990"
- },
- {
   "date": "2026-11-03",
   "title": "위킵, 물류 업무 직접 처리하는 AI 에이전트 ‘위니’ 출시…주문·재고...",
   "link": "https://www.venturesquare.net/1124934/"
@@ -508,5 +453,50 @@
   "date": "2026-11-16",
   "title": "완충 리튬이온 배터리에 압력 가했더니 ‘펑’…5개 중 4개서 불났다",
   "link": "https://www.kyeonggi.com/article/20261116580007"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "[인터뷰] “물류 로봇도 정수기처럼 구독”…홍종욱 파스토로보틱스 대...",
+  "link": "https://www.ddaily.co.kr/page/view/2026111609222863357"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "GXO and Apptronik plan rollout of up to 1,000 humanoid robots",
+  "link": "https://roboticsandautomationnews.com/2026/11/16/gxo-and-apptronik-plan-rollout-of-up-to-1000-humanoid-robots/107200/"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "[3Q실적] 클로봇, 누적 매출 387억…DLS 편입 효과 '톡톡'",
+  "link": "https://www.financialpost.co.kr/news/articleView.html?idxno=301291"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "클로봇, 전년比 64.7% 성장.. 3분기 누적 매출 387억원 달성",
+  "link": "https://www.irobotnews.com/news/articleView.html?idxno=49618"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "클로봇, 3분기 누적 매출 387억원…전년比 64.7% 성장",
+  "link": "https://www.ebn.co.kr/news/articleView.html?idxno=1731874"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "[Ceo’s Speech] 신영수 CJ대한통운 대표 \"외형 성장 넘어 수익 구조 개선...",
+  "link": "https://www.globalepic.co.kr/view.php?ud=20261116100046155048439a4874_29"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "신영수 CJ대한통운 대표 \"창립 96주년...수익구조 개선해 질적 성장해야...",
+  "link": "https://daily.hankooki.com/news/articleView.html?idxno=1425489"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "CJ대한통운, 외형 성장 넘어 내실 강화…물류 투자 성과 본격화",
+  "link": "https://www.ebn.co.kr/news/articleView.html?idxno=1731804"
+ },
+ {
+  "date": "2026-11-17",
+  "title": "새벽배송 기사 죽음에 시작된 실태조사…정작 쿠팡은 없어",
+  "link": "https://www.nocutnews.co.kr/news/6607644?utm_source=naver&utm_medium=article&utm_campaign=20261116165958"
  }
 ]
